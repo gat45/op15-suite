@@ -1,0 +1,33 @@
+{
+  "mcp": {
+    "graft": {
+      "type": "local",
+      "command": ["npx", "-y", "@nanonets/graft", "mcp"],
+      "enabled": true
+    },
+    "jarvix-memory": {
+      "type": "local",
+      "command": [
+        "C:\\Users\\videl\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "D:\\oneplus\\memoire\\mcp_server.py"
+      ],
+      "enabled": true
+    },
+    "upia": {
+      "type": "local",
+      "command": [
+        "C:\\Users\\videl\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "D:\\oneplus\\tools\\upia_mcp_server.py"
+      ],
+      "enabled": true
+    },
+    "unified_recall": {
+      "type": "local",
+      "command": [
+        "node",
+        "E:\\oneplus\\geniex_harness\\mcp\\unified_recall.mjs"
+      ]
+      , "enabled": true
+    }
+  }
+}

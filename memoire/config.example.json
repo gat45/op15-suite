@@ -1,0 +1,9 @@
+{
+  "llama_exe": "",
+  "gguf_dirs": [],
+  "llama_port": 8080,
+  "llama_ctx": 8192,
+  "llama_ngl": 99,
+  "bilan_default": "full",
+  "autolog_dir": "/path/to/private/data/repo"
+}

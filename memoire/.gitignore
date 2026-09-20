@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# Tests / cache
+.pytest_cache/
+.coverage/
+htmlcov/
+
+# Config locale (perso) — example committé
+config.json
+opencode.json
+GEMINI.md
+
+# Rapports de session (privés) + exports autopush
+reports/
+docs/memoire_*.md
+*.md.bak
+
+# Base de données (privée)
+*.db
+*.db-wal
+*.db-shm
+
+# Embeddings / modèles
+*.gguf
+.cache/
+
+# Logs
+*.log
+reports/ui.log
+reports/ui_err.log
+reports/upia_ingest.log
+
+# IDE
+.idea/
+.vscode/

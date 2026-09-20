@@ -1,0 +1,6 @@
+root invisible SUSFS play integrity
+unbrick EDL 9008
+gemma MoE fusion experts HTP profils
+reproduction runtime 16 tps instrumentation
+opencode android client rooté RootHelper APK
+Snapdragon 8 Elite Gen 5 NPU

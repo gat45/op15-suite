@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIX Memory</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a0a0f;color:#e0e0e0}
+.nav{background:#12121a;border-bottom:1px solid #2a2a3a;padding:0 20px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.nav h1{color:#00d4ff;font-size:1.2rem;margin-right:15px;padding:14px 0}
+.nav button{background:transparent;color:#888;border:none;padding:14px 14px;cursor:pointer;font-size:.9rem;border-bottom:2px solid transparent}
+.nav button.active{color:#00d4ff;border-bottom-color:#00d4ff}
+.tab{display:none;max-width:1400px;margin:0 auto;padding:20px}
+.tab.active{display:block}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.panel{background:#12121a;border:1px solid #2a2a3a;border-radius:10px;padding:20px;margin-bottom:20px}
+.panel h2{color:#00d4ff;font-size:1rem;margin-bottom:12px;border-bottom:1px solid #2a2a3a;padding-bottom:8px}
+.full{grid-column:1/-1}
+.stat{background:#1a1a2e;border-radius:8px;padding:10px;text-align:center}
+.stat b{font-size:1.5rem;color:#00d4ff;display:block}
+.stat span{font-size:.7rem;color:#888}
+input,select,textarea{background:#1a1a2e;border:1px solid #333;border-radius:6px;color:#e0e0e0;padding:9px;font-size:.9rem;width:100%}
+input:focus,textarea:focus{outline:none;border-color:#00d4ff}
+.btn{background:#00d4ff;color:#000;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-weight:600;font-size:.85rem;white-space:nowrap}
+.btn:hover{background:#00b8d4}
+.btn.sec{background:#333;color:#e0e0e0}
+.btn.red{background:#a33;color:#fff}
+.row{display:flex;gap:10px;margin-bottom:10px}
+.row>*:first-child{flex:1}
+.list{max-height:420px;overflow-y:auto}
+.item{background:#1a1a2e;border-radius:6px;padding:10px 12px;margin-bottom:8px;border-left:3px solid #00d4ff;font-size:.85rem}
+.item .meta{font-size:.72rem;color:#888;margin-bottom:3px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.item .score{color:#00ff88;font-weight:bold}
+.tag{background:#16213e;color:#00d4ff;border-radius:4px;padding:1px 7px;font-size:.7rem}
+.chat{display:flex;flex-direction:column;height:340px}
+#chatMsgs{flex:1;overflow-y:auto;padding:10px;background:#1a1a2e;border-radius:6px;margin-bottom:10px}
+.msg{margin-bottom:8px;padding:8px 12px;border-radius:8px;max-width:85%;white-space:pre-wrap}
+.msg.user{background:#16213e;margin-left:auto;text-align:right}
+.msg.ai{background:#1a3a1a}
+.msg.small{font-size:.72rem;color:#888;background:none;padding:2px 12px}
+pre{background:#0d0d14;border:1px solid #2a2a3a;border-radius:6px;padding:12px;font-size:.78rem;overflow-x:auto;white-space:pre-wrap;max-height:500px;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+td,th{padding:5px 8px;border-bottom:1px solid #1e1e2c;text-align:left}
+th{color:#00d4ff;font-weight:600;font-size:.75rem}
+.ok{color:#00ff88}.err{color:#ff6666}.warn{color:#ffaa44}
+.muted{color:#888;font-size:.75rem}
+</style>
+</head>
+<body>
+<div class="nav">
+  <h1>JARVIX</h1>
+  <button class="active" onclick="show('dash',this)">Dashboard</button>
+  <button onclick="show('search',this)">Recherche</button>
+  <button onclick="show('chat',this)">Chat JARVIX</button>
+  <button onclick="show('layers',this)">Couches</button>
+  <button onclick="show('files',this)">Fichiers</button>
+  <button onclick="show('llama',this)">llama.cpp</button>
+  <button onclick="show('device',this)">Device</button>
+  <button onclick="show('lab',this)">Lab</button>
+  <button onclick="show('live',this)">Live</button>
+  <button onclick="show('admin',this)">Admin</button>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dash" class="tab active">
+  <div class="panel"><h2>Statistiques</h2><div id="statGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px"></div></div>
+  <div class="grid">
+    <div class="panel"><h2>Actions proposees</h2><div id="actionsPend" class="list"></div>
+      <div class="row" style="margin-top:8px"><input id="actDesc" placeholder="Nouvelle action..."><button class="btn" onclick="actionPropose()">Proposer</button></div></div>
+    <div class="panel"><h2>Recuperations actives / Strategies</h2>
+      <div id="recoveryList" class="list" style="max-height:180px"></div>
+      <div id="strategyList" class="list" style="max-height:180px;margin-top:8px"></div></div>
+  </div>
+</div>
+
+<!-- RECHERCHE -->
+<div id="search" class="tab">
+  <div class="panel"><h2>Recherche memoire</h2>
+    <div class="row"><input id="sq" placeholder="Requete..." onkeydown="if(event.key==='Enter')doSearch()">
+    <select id="smode" style="width:130px"><option value="hybrid">Hybride</option><option value="vector">Vectoriel</option><option value="text">Texte</option></select>
+    <button class="btn" onclick="doSearch()">Chercher</button></div>
+    <div id="sres" class="list"></div></div>
+</div>
+
+<!-- CHAT -->
+<div id="chat" class="tab">
+  <div class="panel"><h2>Raisonnement LLM (RAG)</h2>
+    <div class="chat"><div id="chatMsgs"><div class="msg ai">Bonjour ! Posez une question : je cherche dans la memoire puis le LLM local repond.</div></div>
+    <div class="row" style="margin:0"><input id="ci" placeholder="Question..." onkeydown="if(event.key==='Enter')doChat()"><button class="btn" onclick="doChat()">Envoyer</button></div></div></div>
+</div>
+
+<!-- COUCHES -->
+<div id="layers" class="tab">
+  <div class="panel"><h2>Browser par couche</h2>
+    <div class="row"><select id="layerSel" onchange="loadLayer()"><option value="">— toutes —</option></select>
+    <button class="btn sec" onclick="loadLayer()">Rafraichir</button></div>
+    <div id="layerList" class="list"></div></div>
+  <div class="panel"><h2>Ajouter une memoire</h2>
+    <div class="row"><select id="addType" style="width:150px"><option value="semantic">semantic</option><option value="episodic">episodic</option><option value="procedural">procedural</option><option value="decision">decision</option><option value="hypothesis">hypothesis</option><option value="evidence">evidence</option><option value="graph">graph</option><option value="error">error</option></select>
+    <input id="addConf" type="number" step="0.05" min="0" max="1" value="1.0" style="width:90px"></div>
+    <textarea id="addContent" rows="3" placeholder="Contenu..."></textarea>
+    <div class="row" style="margin-top:8px"><button class="btn" onclick="addMemory()">Ajouter</button><span id="addRes" class="muted"></span></div></div>
+</div>
+
+<!-- FICHIERS -->
+<div id="files" class="tab">
+  <div class="panel"><h2>Emplacements importants</h2><div id="impList" class="list"></div></div>
+  <div class="panel"><h2>Explorateur disque</h2>
+    <div class="row"><input id="fpath" value="."><button class="btn" onclick="fsGo()">Aller</button></div>
+    <div class="muted" id="finfo" style="margin:4px 0 8px"></div>
+    <div id="flist" class="list"></div></div>
+  <div class="panel"><h2>Vue fichier</h2><div class="muted" id="fvpath">Cliquez sur un fichier ci-dessus</div><pre id="fview" style="display:none"></pre></div>
+</div>
+
+<!-- LLAMA.CPP -->
+<div id="llama" class="tab">
+  <div class="panel"><h2>Serveur llama.cpp</h2><div id="llamaStat">—</div>
+    <div class="row" style="margin-top:10px"><button class="btn ok" onclick="llamaStop()">Arreter</button><button class="btn sec" onclick="llamaLog()">Voir log</button></div>
+    <pre id="llamaLogBox" style="display:none;margin-top:10px;max-height:250px"></pre></div>
+  <div class="panel"><h2>Modeles GGUF sur disque</h2>
+    <div class="row"><input id="ggufFilter" placeholder="Filtrer..." oninput="renderModels()"><button class="btn sec" onclick="loadModels(true)">Rescanner disque</button></div>
+    <div class="muted" id="ggufCount"></div><div id="ggufList" class="list"></div></div>
+  <div class="panel"><h2>Lancer serveur</h2>
+    <div class="row"><select id="lmModel" style="flex:1"></select></div>
+    <div class="row"><input id="lmPort" type="number" value="8080" style="width:90px" title="port"><input id="lmCtx" type="number" value="8192" style="width:100px" title="ctx"><input id="lmNgl" type="number" value="99" style="width:90px" title="gpu layers"><input id="lmExtra" placeholder="args extra (--flash-attn ...)"></div>
+    <button class="btn ok" onclick="llamaStart()">Demarrer serveur</button><div class="muted" id="lmRes" style="margin-top:8px"></div></div>
+</div>
+
+<!-- DEVICE -->
+<div id="device" class="tab">
+  <div class="panel"><h2>Appareil (adb)</h2><div id="devInfo">—</div><div class="row" style="margin-top:10px"><button class="btn sec" onclick="loadDevice()">Rafraichir</button></div></div>
+  <div class="panel"><h2>Etat du monde (beliefs + predictions)</h2><div id="worldList" class="list" style="max-height:250px"></div></div>
+</div>
+
+<!-- LAB -->
+<div id="lab" class="tab">
+  <div class="grid">
+    <div class="panel"><h2>verify_auto (preuves deterministes)</h2>
+      <input id="lbClaim" placeholder="Claim a verifier...">
+      <textarea id="lbChecks" rows="5" placeholder='[{"type":"file_exists","path":"."}, {"type":"command","cmd":["python","--version"]}, {"type":"measurement","actual":10,"op":"gt","expected":5}]'></textarea>
+      <button class="btn" onclick="labVerify()">Executer checks</button>
+      <pre id="lbVerifyOut" style="display:none;margin-top:8px"></pre></div>
+    <div class="panel"><h2>Hypotheses (do_not_repeat)</h2>
+      <div class="row"><input id="lbHyp" placeholder="Hypothese testable..."><button class="btn" onclick="hypPropose()">Proposer</button></div>
+      <div id="lbHypList" class="list" style="max-height:180px"></div>
+      <div style="margin-top:6px" class="muted">Repetition d'experiences (garde antirefus cf P0)</div>
+      <div class="row"><input id="lbRepeat" placeholder="Re-test d'une piste?"><button class="btn sec" onclick="hypGuard()">Guard</button></div>
+      <pre id="lbHypOut" style="display:none;margin-top:8px"></pre></div>
+    <div class="panel"><h2>Perception + Environment</h2>
+      <div class="row"><input id="lbPerceive" placeholder="Chemin artefact (log, image...)"><button class="btn" onclick="perceive()">Percevoir</button></div>
+      <div class="row"><button class="btn sec" onclick="envCapture()">Capturer environnement</button></div>
+      <pre id="lbEnvOut" style="display:none;margin-top:6px;max-height:200px"></pre></div>
+    <div class="panel"><h2>JEV (jugement type)</h2>
+      <div class="row"><input id="lbJevQ" placeholder="Query pour route..."><button class="btn sec" onclick="jevRoute()">Route</button></div>
+      <div class="row"><input id="lbJevA" placeholder="Action pour gate..."><button class="btn sec" onclick="jevGate()">Gate</button></div>
+      <pre id="lbJevOut" style="display:none;margin-top:6px;max-height:200px"></pre></div>
+    <div class="panel"><h2>Monde quantitatif (calibration)</h2>
+      <div class="row"><input id="lbQk" placeholder="cle (ex tok_s)" style="flex:2"><input id="lbQmin" type="number" placeholder="min"><input id="lbQmax" type="number" placeholder="max"><button class="btn" onclick="quantPredict()">Predict</button></div>
+      <div class="row"><input id="lbQid" placeholder="prediction_id" style="flex:2"><input id="lbQa" type="number" placeholder="valeur reelle"><button class="btn" onclick="quantObserve()">Observation</button></div>
+      <button class="btn sec" onclick="quantCalib()" style="margin-bottom:6px">Calibration</button>
+      <pre id="lbQuantOut" style="display:none;max-height:220px"></pre></div>
+  </div>
+</div>
+
+<!-- LIVE -->
+<div id="live" class="tab">
+  <div class="panel"><h2>Contexte live pour le LLM</h2>
+    <div class="row"><input id="liveQ" placeholder="Filtrer (ex: NPU profiling)"><button class="btn" onclick="liveBundle()">Rafraichir bundle</button>
+    <button class="btn ok" id="liveWatchBtn" onclick="liveWatch()">Watcher</button></div>
+    <div class="muted" id="liveMeta"></div>
+    <div id="liveItems" class="list" style="max-height:460px;margin-top:8px"></div></div>
+</div>
+
+<!-- ADMIN -->
+<div id="admin" class="tab">
+  <div class="grid">
+    <div class="panel"><h2>Configuration</h2><div id="cfgForm"></div><button class="btn" onclick="saveConfig()" style="margin-top:10px">Sauver config</button></div>
+    <div class="panel"><h2>Maintenance</h2><div class="row"><button class="btn sec" onclick="runConsolidation()">Consolidation (sleep cycle)</button></div>
+      <div class="row"><button class="btn sec" onclick="rebuildEmb()">Reconstruire embeddings (bg)</button></div>
+      <div class="row"><button class="btn ok" onclick="autopush()">Publier memoire sur GitHub</button></div>
+      <div class="row"><button class="btn" onclick="genBilan(false)">Generer bilan</button><button class="btn" onclick="genBilan(true)">Bilan + analyse LLM</button></div>
+      <pre id="bilanOut" style="max-height:350px;display:none"></pre></div>
+    <div class="panel"><h2>Claims (verification)</h2><div id="claimList" class="list" style="max-height:250px"></div></div>
+    <div class="panel"><h2>Regles proactives</h2><div id="ruleList" class="list" style="max-height:180px"></div>
+      <div class="row" style="margin-top:8px"><input id="ruleName" placeholder="nom"><input id="ruleTrig" placeholder="condition"></div>
+      <button class="btn sec" onclick="addRule()">Ajouter regle</button></div>
+    <div class="panel full"><h2>Graphe (relations)</h2><div id="graphList" class="list"></div>
+      <div class="row" style="margin-top:8px"><input id="gS" placeholder="sujet" style="flex:1"><input id="gP" placeholder="predicat" style="flex:1"><input id="gO" placeholder="objet" style="flex:1"><button class="btn sec" onclick="addRel()">+</button></div></div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+async function api(url,opt){const r=await fetch(url,opt);return r.json();}
+function esc(s){return (s||'').replace(/</g,'&lt;');}
+function show(name,btn){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));$(''+name).classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  if(name==='dash')loadDash();if(name==='layers')initLayers();if(name==='files')loadImportant();if(name==='llama'){loadLlamaStatus();loadModels();}if(name==='device')loadDevice();if(name==='admin')initAdmin();if(name==='lab')loadLab();if(name==='live')liveBundle();}
+const kindColor={inventory:'#00d4ff',fact:'#00ff88',hypothesis:'#ffaa00',recovery:'#ff6666'};
+async function liveBundle(){const b=await api('/api/live?query='+encodeURIComponent($('liveQ').value||''));
+$('liveMeta').textContent=`status=${b.status} · ${b.items.length} items · ~${b.estimated_tokens} tokens · ${b.ts.substring(0,16)}`;
+$('liveItems').innerHTML=b.items.map(i=>{
+const c=kindColor[i.kind]||'#00d4ff';let body='';
+if(i.kind==='inventory')body=`<b>${esc(i.root)}</b> — ${i.files||'?'} fichiers<br><span class="muted">${esc((i.summary||'').substring(0,300))}</span>`;
+else if(i.kind==='recovery')body=`[ECHEC tente ${i.attempt}] ${esc(i.content)}`;
+else if(i.kind==='hypothesis')body=`<b>${i.status}</b> ${esc(i.content)}`;
+else body=esc((i.content||'').substring(0,260));
+return `<div class="item" style="border-left-color:${c}"><span class="tag" style="color:${c}">${i.kind}</span> ${body}</div>`}).join('')||'<div class="muted">Vide</div>';}
+async function liveWatch(){window._watchOn=!window._watchOn;
+const d=await api('/api/live/watch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:window._watchOn?'start':'stop'})});
+$('liveWatchBtn').textContent=window._watchOn?'Watcher ON':'Watcher';
+$('liveMeta').textContent+=(window._watchOn?' watcher demarre ':' watcher arrete ')+JSON.stringify(d);}
+function loadLab(){requestAnimationFrame(()=>{try{api('/api/lab/hyp/pending').then(d=>{$('lbHypList').innerHTML=(d.hypotheses||[]).map(h=>`<div class="item"><b>${esc((h.content||'').substring(0,60))}</b> <span class="muted">${h.status} · ${h.attempts}essai(s)</span></div>`).join('')||'<div class="muted">Aucune hypothese en attente</div>'})}catch(e){}})}
+async function labVerify(){const p=$('lbVerifyOut');p.style.display='block';p.textContent='execution...';try{let checks=[];try{checks=JSON.parse($('lbChecks').value||'[]')}catch(e){checks=[]}
+const d=await api('/api/lab/verify-auto',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({claim:$('lbClaim').value,checks})});p.textContent=JSON.stringify(d,null,1)}catch(e){p.textContent='Erreur: '+e}}
+async function hypPropose(){const p=$('lbHypOut');p.style.display='block';const d=await api('/api/lab/hyp/propose',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({statement:$('lbHyp').value})});p.textContent='Proponu: '+JSON.stringify(d,null,1);$('lbHyp').value='';loadLab();}
+async function hypGuard(){const p=$('lbHypOut');p.style.display='block';const d=await api('/api/lab/hyp/guard?q='+encodeURIComponent($('lbRepeat').value));p.textContent=JSON.stringify(d,null,1)}
+async function perceive(){const p=$('lbEnvOut');p.style.display='block';p.textContent='perception...';const d=await api('/api/lab/perceive',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:$('lbPerceive').value})});p.textContent=JSON.stringify(d,null,1)}
+async function envCapture(){const p=$('lbEnvOut');p.style.display='block';p.textContent='capture...';const d=await api('/api/lab/env/capture',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});p.textContent=JSON.stringify(d,null,1)}
+async function jevRoute(){const p=$('lbJevOut');p.style.display='block';const d=await api('/api/lab/jev/route',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:$('lbJevQ').value})});p.textContent=JSON.stringify(d,null,1)}
+async function jevGate(){const p=$('lbJevOut');p.style.display='block';const d=await api('/api/lab/jev/gate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:$('lbJevA').value})});p.textContent=JSON.stringify(d,null,1)}
+async function quantPredict(){const p=$('lbQuantOut');p.style.display='block';const d=await api('/api/lab/quant/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:$('lbQk').value,range_min:+$('lbQmin').value,range_max:+$('lbQmax').value})});p.textContent='Predicted: '+JSON.stringify(d,null,1)}
+async function quantObserve(){const p=$('lbQuantOut');p.style.display='block';const d=await api('/api/lab/quant/observe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prediction_id:$('lbQid').value,actual:+$('lbQa').value})});p.textContent=JSON.stringify(d,null,1)}
+async function quantCalib(){const p=$('lbQuantOut');p.style.display='block';const d=await api('/api/lab/quant/calibration');p.textContent=JSON.stringify(d,null,1)}
+
+function memItem(m,showScore){const s=m._score?`<span class="score">${m._score}</span>`:'';const imp=m.importance?`imp=${m.importance}`:'';
+return `<div class="item"><div class="meta"><span class="tag">${m.type}</span>${s}<span>${(m.id||'').substring(0,8)}</span><span>${m.created_at?(m.created_at+'').substring(0,16):''}</span></span><span class="muted">${imp}</span></div><div>${esc((m.content||'').substring(0,250))}</div></div>`;}
+
+/* DASH */
+async function loadDash(){
+  const h=await api('/api/health');const st=h.memories;
+  $('statGrid').innerHTML=Object.entries(st).map(([k,v])=>`<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('')+
+    `<div class="stat"><b>${h.db_version}</b><span>schema</span></div><div class="stat"><b>${h.vector_store.embeddings||0}</b><span>embeddings</span></div>`;
+  const a=await api('/api/actions/pending');
+  $('actionsPend').innerHTML=a.actions.length?a.actions.map(x=>`<div class="item"><div class="meta"><span class="tag">action</span>p=${(JSON.parse(x.metadata||'{}').priority)||x.priority||5}</div>${esc(x.content)}<div class="row" style="margin-top:6px"><button class="btn" onclick="actOk('${x.id}')">Approuver+Exec</button></div></div>`).join(''):'<div class="muted">Aucune action proposee</div>';
+  const r=await api('/api/recovery/active');
+  $('recoveryList').innerHTML=r.recoveries.length?r.recoveries.map(x=>`<div class="item" style="border-color:#ffaa00">[FAIL] ${esc((x.content||'').substring(0,120))}</div>`).join(''):'<div class="muted">Aucune recuperation active</div>';
+  const s=await api('/api/strategies');
+  $('strategyList').innerHTML=s.strategies.map(x=>`<div class="item">${esc(x.content||'')} <span class="muted">tenu(x)</span></div>`).join('')||'<div class="muted">—</div>';
+}
+async function actOk(id){await api(`/api/actions/${id}/approve`,{method:'POST'});await api(`/api/actions/${id}/execute`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});loadDash();}
+async function actionPropose(){const d=$('actDesc').value;if(!d)return;await api('/api/actions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({description:d,priority:7})});$('actDesc').value='';loadDash();}
+
+/* SEARCH */
+async function doSearch(){const q=$('sq').value;$('sres').innerHTML='<div class="muted">...</div>';
+  const d=await api('/api/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:$('sq').value,mode:$('smode').value,limit:15})});
+  $('sres').innerHTML=d.results.length?d.results.map(m=>memItem(m)).join(''):'<div class="muted">Aucun resultat</div>';}
+
+/* CHAT */
+async function doChat(){const q=$('ci').value.trim();if(!q)return;$('ci').value='';const box=$('chatMsgs');
+box.innerHTML+=`<div class="msg user">${esc(q)}</div><div class="msg ai" id="cload">Recuperation + raisonnement...</div>`;box.scrollTop=box.scrollHeight;
+try{const d=await api('/api/reason',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})});
+$('chatMsgs').querySelector('#chatLoading')?.remove();
+box.innerHTML+=`<div class="msg ai">${esc(d.response)}</div><div class="msg small">${d.memories_used} memoire(s) utilisee(s)</div>`;
+}catch(e){box.innerHTML+=`<div class="msg ai err">Erreur: ${e}</div>`}box.scrollTop=box.scrollHeight;}
+
+/* LAYERS */
+async function initLayers(){const st=await api('/api/layers');$('layerSel').innerHTML='<option value="">— toutes —</option>'+Object.keys(st).filter(k=>k!=='total_memories').map(k=>`<option>${k}</option>`).join('');loadLayer();}
+async function loadLayer(){const t=$('layerSel').value;const d=await api('/api/memories'+(t?`?type=${t}&limit=60`:'?limit=60'));
+$('layerList').innerHTML=d.memories.map(m=>memItem(m)).join('')||'<div class="muted">Vide</div>';}
+async function addMemory(){const d=await api('/api/memories',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:$('addContent').value,type:$('addType').value,confidence:+$('addConf').value})});
+$('addRes').textContent=d.id?('cree '+d.id.substring(0,8)):('erreur');$('addContent').value='';if($('layerSel').value)loadLayer();}
+
+/* FILES */
+async function loadImportant(){const d=await api('/api/fs/important');
+$('impList').innerHTML=d.locations.map(l=>`<div class="item"><div class="meta"><span class="tag">${l.exists?'<span class=ok>OK</span>':'<span class=err>ABSENT</span>'}</span>${l.label}${l.size?' — '+fmtB(l.size):''}</div><code style="font-size:.75rem">${l.path}</code></div>`).join('');}
+function fmtB(b){const u=['B','KB','MB','GB'];let i=0;while(b>=1024&&i<3){b/=1024;i++}return b.toFixed(1)+' '+u[i];}
+async function fsGo(p){const path=p||$('fpath').value;const d=await api('/api/fs/list?path='+encodeURIComponent(path));
+if(d.error){$('finfo').textContent='Erreur: '+d.error;return}
+$('fpath').value=d.path;$('finfo').textContent=`${d.count} elements — ${d.path}`;
+$('flist').innerHTML=d.items.map(i=>`<div class="item"><span style="cursor:pointer" onclick="${i.is_dir?`fsGo('${i.path.replace(/'/g,"\\'")}')`:`fsView('${i.path.replace(/'/g,"\\'")}')`}"><b>${i.is_dir?'📁':'📄'}</b> ${esc(i.name)}</span><div class="meta">${i.is_dir?'':fmtB(i.size)} ${i.mtime||''}</div></div>`).join('')
+||'<div class="muted">Vide</div>';}
+async function fsView(p){$('fvpath').textContent=p;$('fview').style.display='block';$('fview').textContent='chargement...';
+const d=await api('/api/fs/view?path='+encodeURIComponent(p));
+$('fview').textContent=d.error?('Erreur: '+d.error):d.lines.join('\n');$('fvpath').textContent=p+' — '+fmtB(d.size);}
+
+/* LLAMA */
+async function loadLlamaStatus(){const d=await api('/api/llama/status');
+$('llamaStat').innerHTML=d.running?`<span class="ok">● UP</span> — ${d.model||'?'} — port ${d.port} — ${d.processes} proc`:`<span class="err">● DOWN</span> — port ${d.port} — ${d.processes||0} proces(s)`;}
+async function llamaStop(){if(!confirm('Arreter llama-server ?'))return;await api('/api/llama/stop',{method:'POST'});loadLlamaStatus();}
+async function llamaLog(){$('llamaLogBox').style.display='block';const d=await api('/api/llama/log?tail=60');$('llamaLogBox').textContent=d.tail.join('\n')||'(log vide)';}
+async function loadModels(force){if(force){const d=await api('/api/llama/scan',{method:'POST'});var ms=d.models}else{const d=await api('/api/llama/models');var ms=d.models}
+window._models=ms;$('ggufCount').textContent=ms.length+' modeles';renderModels();
+$('lmModel').innerHTML=ms.map(m=>`<option value="${m.path}">${m.name} (${m.size_h})</option>`).join('');}
+function renderModels(){const f=($('ggufFilter').value||'').toLowerCase();
+$('ggufList').innerHTML=window._models.filter(m=>m.name.toLowerCase().includes(f)).map(m=>`<div class="item"><div class="meta"><span class="tag gguf">gguf</span>${m.size_h} — ${m.mtime} — ${m.dir}</div><span style="cursor:pointer" onclick="lmUse('${m.path.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">${esc(m.name)}</span></div>`).join('')||'<div class="muted">Aucun</div>';}
+function lmUse(p){$('lmModel').value=p;}
+async function llamaStart(){const d=await api('/api/llama/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:$('lmModel').value,port:+$('lmPort').value,ctx:+$('lmCtx').value,ngl:+$('lmNgl').value,extra_args:$('lmExtra').value})});
+$('lmRes').innerHTML=d.error?`<span class="err">${esc(d.error)}</span>`:`<span class="ok">Lance (pid ${d.pid})</span> — ${esc(d.model||'')}`;loadLlamaStatus();}
+
+/* DEVICE */
+async function loadDevice(){const dev=await api('/api/device');
+$('devInfo').innerHTML=dev.connected?`<table><tr><th>Modele</th><td>${d(dev.model)}</td></tr><tr><th>Android</th><td>${d(dev.android)}</td></tr><tr><th>Root</th><td>${dev.root?'<span class=ok>OUI</span>':'non'}</td></tr></table>`:'<span class="err">Deconnecte (adb)</span>';
+const w=await api('/api/world/beliefs');const p=await api('/api/world/predictions');
+$('worldList').innerHTML=Object.entries(w.beliefs).map(([k,v])=>`<div class="item"><b>${k}</b> = ${esc(JSON.stringify(v.value))} <span class="muted">conf=${v.confidence}</span></div>`).join('')
++(p.predictions||[]).map(x=>`<div class="item" style="border-color:#ffaa00">[pred] ${esc((x.content||'').substring(0,120))}</div>`).join('')||'<div class="muted">Vide</div>';
+function dd(x){return x}}
+function d(x){return x||'—'}
+function dd2(){}
+function dm(x){return esc(x||'—')}
+
+/* ADMIN */
+async function initAdmin(){const c=(await api('/api/config')).config;
+$('cfgForm').innerHTML=Object.entries(c).map(([k,v])=>`<div class="row"><label class="muted" style="width:120px">${k}</label><input id="cfg_${k}" value="${typeof v==='string'?v:JSON.stringify(v).replace(/"/g,'&quot;')}"></div>`).join('');
+loadClaims();loadRules();loadGraph();}
+async function saveConfig(){const o={};document.querySelectorAll('[id^=cfg_]').forEach(el=>{const k=el.id.slice(4);let v=el.value;
+try{v=JSON.parse(v)}catch(e){if(/^\d+$/.test(v))v=+v}
+o[k]=v});
+await api('/api/config',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(o)});alert('Config sauvee');}
+async function runConsolidation(){const r=await api('/api/consolidation',{method:'POST'});alert('Consolidation: '+JSON.stringify(r))}
+async function rebuildEmb(){await api('/api/rebuild-embeddings',{method:'POST'});alert('Re-embed lance en arriere-plan')}
+async function autopush(){const el=document.getElementById('bilanOut');el.style.display='block';el.textContent='export + commit + push...';const d=await api('/api/autopush',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});el.textContent=JSON.stringify(d,null,1);} 
+async function genBilan(an){const p=$('bilanOut');p.style.display='block';p.textContent='generation...';
+const r=await api('/api/bilan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({analyze:an,save:true})});p.textContent=r.report;}
+async function loadClaims(){const r=await api('/api/claims');
+$('claimList').innerHTML=(r.claims||[]).map(c=>`<div class="item"><div class="meta"><span class="tag">${c.verdict||c.status||'?'}</span></div>${esc((c.content||'').substring(0,140))}</div>`).join('')||'<div class="muted">Aucun claim</div>';}
+async function loadRules(){const r=await api('/api/rules');
+$('ruleList').innerHTML=(r.rules||[]).map(x=>`<div class="item">${esc(x.name)} — <span class="muted">${esc(x.trigger_condition||'')}</span> <button class="btn red" style="padding:2px 8px;float:right" onclick="delRule('${x.id}')">x</button></div>`).join('')||'<div class="muted">Aucune regle</div>';}
+async function delRule(id){await api('/api/rules/'+id,{method:'DELETE'});loadRules();}
+async function addRule(){await api('/api/rules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('ruleName').value,trigger_condition:$('ruleTrig').value})});$('ruleName').value='';$('ruleTrig').value='';loadRules();}
+async function loadGraph(){const r=await api('/api/graph');
+$('graphList').innerHTML=(r.edges||[]).map(e=>`<div class="item">${esc(e.from)} <b style="color:#00d4ff">--${esc(e.predicate)}--></b> ${esc(e.to)}</div>`).join('')||'<div class="muted">Graphe vide</div>';}
+async function addRel(){await api('/api/graph',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject:$('gS').value,predicate:$('gP').value,object:$('gO').value})});$('gS').value=$('gP').value=$('gO').value='';loadGraph();}
+loadDash();
+</script>
+</body>
+</html>

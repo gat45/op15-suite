@@ -1,0 +1,21 @@
+# runtime / caches
+__pycache__/
+*.pyc
+.venv/
+*.log
+
+# DB runtime (dérivables)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# rapports générés
+memoire/reports/
+reports/
+
+# gros artefacts jamais versionnés
+*.gguf
+*.so
+*.bin
+*.egg-info/
