@@ -53,9 +53,27 @@ def cmd_bilan(args):
     return run([PY, str(MEMOIRE / "bilan.py")], cwd=MEMOIRE)
 
 
+GATES_DOC = """Gates de la campagne MoE §8.1-4 (campaign_moe.py du harness) :
+G0  device présent
+G1  hashes modèle/lib/skel (§8.1)
+G2  baseline froide/chaude n=5, CV<3% (§8.2)
+G3  patch trace seul déployé (§8.3)
+G4  capture trace expert réelle (§8.4)
+G5  parse + attribution HTP (§8.5-6, bonus)
+G6  replay budgets RPCMEM (§8.7, bonus)
+G7  gate validate_moe_cache (§8.8-9, bonus)
+"""
+
+
 def cmd_campaign(args):
     script = Path(args.harness) / "campaign_moe.py"
     if not script.exists():
+        # --list est de la doc pure : ne dépend pas du harness
+        if args.list:
+            print(GATES_DOC)
+            print(f"(harness introuvable : {script} — exécution réelle requiert "
+                  "le harness local, cf. --harness)")
+            return 0
         print(f"campaign_moe.py introuvable : {script}\n"
               "(le harness geniex_harness reste hors repo — passer --harness <chemin>)")
         return 2
