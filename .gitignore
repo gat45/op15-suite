@@ -19,3 +19,4 @@ reports/
 *.so
 *.bin
 *.egg-info/
+governor_state/
