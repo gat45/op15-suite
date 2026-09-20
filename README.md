@@ -9,6 +9,18 @@
 OnePlus 15 (CPH2747 / SM8850) knowledge & MoE pipeline — mémoire gouvernée,
 RAG forensics, diagnostic MCP, campagne MoE sur device.
 
+## 🤖 Agent quickstart (LLM sans contexte)
+
+Tu es un agent qui découvre ce repo ? Ne déduis rien de la mémoire — **mesure** :
+
+1. Lis **[OPMAP.md](OPMAP.md)** — la carte de lancement : commande de démarrage,
+   table symptôme → commande, pièges connus (cold-starts, hangs Windows,
+   variantes dspqueue/mempool…), chaîne de vérité.
+2. Lance **`op15 status`** — état global en 1 commande + prochaine action conseillée.
+3. Lance **`op15 doctor`** — preuve réelle que les MCP répondent (pas juste tools/list).
+
+Tout le reste (rag, learn, report, campaign…) découle de ces trois points.
+
 ## Contenu
 
 | Dossier | Rôle |

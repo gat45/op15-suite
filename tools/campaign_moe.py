@@ -1,6 +1,4 @@
 # COPIE VENDOR POUR CI/NIGHTLY — la version canonique vit dans le harness
-# (E:/oneplus/geniex_harness/campaign_moe.py). Gates G0/G1 fonctionnent
-# standalone ; les gates device (G2+) exigent governor/ du harness.
 """campaign_moe.py — campagne device §8.1-4 en une commande (portes = gates).
 
 Usage (OP15 branché) :
@@ -79,9 +77,21 @@ class Spec:
 # ─────────────────────────────────────────────────────────────── G0
 def g0_device(_args, ctx):
     r = adb("get-state", timeout=15)
-    if (r.stdout or "").strip() != "device":
-        return False, {"error": "OP15 absent (adb get-state != device)",
-                       "remediation": "brancher l'OP15, déverrouiller, adb wait-device"}
+    out = (r.stdout or "").strip()
+    err = (r.stderr or "").strip()
+    # match EXACT sur stdout : l'échec adb renvoie sur stderr
+    # "error: no devices/emulators found" — qui contient "device"
+    if r.returncode != 0 or out != "device":
+        hint = {
+            "unauthorized": "device branché mais NON AUTORISÉ — accepter la "
+                            "signature RSA sur l'écran du téléphone",
+            "offline": "device offline — rebrancher l'USB puis adb kill-server && adb devices",
+        }.get(out)
+        detail = f"adb get-state={out or '∅'}, rc={r.returncode}"
+        if err:
+            detail += f" ({err[:60]})"
+        return False, {"error": f"OP15 non prêt ({detail})",
+                       "remediation": hint or "brancher l'OP15, déverrouiller, adb wait-device"}
     ser = (adb("get-serialno").stdout or "").strip()
     return True, {"serial": ser}
 
