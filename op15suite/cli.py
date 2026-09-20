@@ -119,14 +119,18 @@ def cmd_status(args):
     try:
         r = subprocess.run(["adb", "get-state"], capture_output=True, text=True,
                            timeout=8, encoding="utf-8", errors="replace")
-        state = (r.stdout or r.stderr or "").strip()
-        if "device" in state:
+        # succès = stdout EXACTEMENT "device". Piège : l'échec renvoie sur
+        # stderr "error: no devices/emulators found" — qui CONTIENT "device"
+        # comme sous-chaîne. Ne jamais tester par inclusion.
+        out = (r.stdout or "").strip()
+        err = (r.stderr or "").strip()
+        if r.returncode == 0 and out == "device":
             device_ok = True
             checks.append(("OK", "device OP15", "branché (adb) — campagne possible: "
                            "op15 campaign --model <GGUF>"))
         else:
-            checks.append(("WARN", "device OP15", f"adb: {state[:60]} — campagne §8 en "
-                           "attente de branchement"))
+            checks.append(("WARN", "device OP15", f"adb: {(err or out or 'exit ' + str(r.returncode))[:60]}"
+                           " — campagne §8 en attente de branchement"))
     except FileNotFoundError:
         checks.append(("WARN", "device OP15", "adb absent du PATH — "
                        "https://developer.android.com/tools/releases/platform-tools"))
