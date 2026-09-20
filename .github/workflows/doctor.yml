@@ -32,6 +32,12 @@ jobs:
           python3 tools/mcp_doctor.py --json --out doctor-report.json || true
           cat doctor-report.json
 
+      - name: Validate report schema (gate)
+        # le rapport DOIT rester consommable (session reports, dashboards) :
+        # un rapport absent ou hors schéma casse le job, même si doctor a
+        # lui-même tourné avec || true
+        run: python3 tools/validate_doctor_report.py doctor-report.json
+
       - name: Upload doctor report
         if: always()
         uses: actions/upload-artifact@v4
