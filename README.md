@@ -1,6 +1,7 @@
 # op15-suite
 
-![CI mcp-doctor](https://github.com/gat45/op15-suite/actions/workflows/doctor.yml/badge.svg)
+[![CI mcp-doctor](https://github.com/gat45/op15-suite/actions/workflows/doctor.yml/badge.svg)](https://github.com/gat45/op15-suite/actions/workflows/doctor.yml)
+[![nightly §8](https://github.com/gat45/op15-suite/actions/workflows/doctor.yml/badge.svg?event=schedule)](https://github.com/gat45/op15-suite/actions/workflows/doctor.yml)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
