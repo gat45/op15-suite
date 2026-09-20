@@ -1,8 +1,10 @@
 """op15-suite — CLI unifié du projet OnePlus 15 (mémoires, RAG, diagnostics, campagne)."""
 import argparse
 import json
+import os
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent  # racine du repo op15-suite
@@ -11,6 +13,7 @@ FORENSICS = TOOLS / "forensics"
 MEMOIRE = ROOT / "memoire"
 
 PY = sys.executable or "python"
+LLM_URL = "http://127.0.0.1:18181"  # serveur llama.cpp (synthèse upia)
 
 
 def run(cmd, cwd=None):
@@ -85,6 +88,97 @@ def cmd_campaign(args):
     return run(cmd)
 
 
+def cmd_status(args):
+    """État global de l'environnement en 1 commande — le point d'entrée d'un
+    agent qui découvre la machine : repo, registre MCP, device, harness,
+    LLM local, mémoires. Sortie : verdicts + « prochaine action » conseillée.
+    """
+    checks: list[tuple[str, str, str]] = []  # (état, sujet, note/hint)
+
+    # 1. repo
+    missing = [p for p in ("tools/mcp_doctor.py", "tools/forensics/rag_bm25.py",
+                           "memoire/mcp_server.py", "opencode.json")
+               if not (ROOT / p).exists()]
+    checks.append(("OK" if not missing else "FAIL", "repo op15-suite",
+                   "fichiers clés présents" if not missing
+                   else f"manquants: {missing}"))
+
+    # 2. registre MCP (qui devrait tourner)
+    try:
+        reg = json.loads((ROOT / "opencode.json").read_text(encoding="utf-8"))
+        servers = reg.get("mcp") or reg.get("mcpServers") or {}
+        enabled = [n for n, c in servers.items()
+                   if isinstance(c, dict) and c.get("enabled", True)]
+        checks.append(("OK", "registre MCP", f"{len(enabled)} serveurs: {', '.join(sorted(enabled))}"
+                       " — test réel: op15 doctor"))
+    except Exception as e:
+        checks.append(("FAIL", "registre MCP", f"illisible: {e}"))
+
+    # 3. device OP15
+    device_ok = False
+    try:
+        r = subprocess.run(["adb", "get-state"], capture_output=True, text=True,
+                           timeout=8, encoding="utf-8", errors="replace")
+        state = (r.stdout or r.stderr or "").strip()
+        if "device" in state:
+            device_ok = True
+            checks.append(("OK", "device OP15", "branché (adb) — campagne possible: "
+                           "op15 campaign --model <GGUF>"))
+        else:
+            checks.append(("WARN", "device OP15", f"adb: {state[:60]} — campagne §8 en "
+                           "attente de branchement"))
+    except FileNotFoundError:
+        checks.append(("WARN", "device OP15", "adb absent du PATH — "
+                       "https://developer.android.com/tools/releases/platform-tools"))
+    except subprocess.TimeoutExpired:
+        checks.append(("WARN", "device OP15", "adb ne répond pas (daemon démondé ?)"))
+
+    # 4. harness (campagne réelle)
+    harness = Path(args.harness)
+    ok_h = (harness / "campaign_moe.py").exists()
+    checks.append(("OK" if ok_h else "WARN", "harness geniex",
+                   str(harness) if ok_h else
+                   f"campaign_moe.py introuvable sous {harness} — "
+                   "dry-run possible sans (op15 campaign --list)"))
+
+    # 5. LLM local (synthèse upia)
+    try:
+        with urllib.request.urlopen(f"{LLM_URL}/v1/models", timeout=2) as resp:
+            checks.append(("OK" if resp.status == 200 else "WARN",
+                           f"LLM local {LLM_URL}",
+                           f"HTTP {resp.status} — upia_ask utilisable"))
+    except Exception as e:
+        checks.append(("WARN", f"LLM local {LLM_URL}",
+                       f"absent ({type(e).__name__}) — synthèse upia en fallback "
+                       "déterministe; démarrer llama-server si nécessaire"))
+
+    # 6. mémoires (DB runtime dérivables)
+    jarvix = MEMOIRE / "jarvix_memory.db"
+    rag = FORENSICS / "memory.db"
+    checks.append(("OK" if jarvix.exists() else "WARN", "JARVIX",
+                   f"{jarvix.name} présent" if jarvix.exists() else
+                   "DB absente — recréée à la première écriture (MCP ou bilan.py)"))
+    checks.append(("OK" if rag.exists() else "WARN", "RAG forensics",
+                   f"{rag.name} présent" if rag.exists() else
+                   "DB absente — construire par ingestion: op15 learn <dossier>"))
+
+    icons = {"OK": "[OK]  ", "WARN": "[WARN]", "FAIL": "[FAIL]"}
+    print("=== op15 status — état de l'environnement ===")
+    for st, subject, note in checks:
+        print(f"{icons[st]} {subject:22s} {note}")
+    n_fail = sum(1 for s, _, _ in checks if s == "FAIL")
+    print("---")
+    print("prochaine action conseillée :")
+    if n_fail:
+        print("  0. réparer les [FAIL] ci-dessus (repo incomplet ?)")
+    print("  1. op15 doctor          # vérifier que les MCP répondent vraiment")
+    if device_ok:
+        print("  2. op15 campaign --model <GGUF>   # device branché : lancer §8.1-4")
+    else:
+        print("  2. (device absent) op15 campaign --list   # revoir les gates §8")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(prog="op15-suite",
                                  description="OnePlus 15 knowledge & MoE pipeline")
@@ -118,9 +212,15 @@ def main() -> int:
     p = sub.add_parser("bilan", help="bilan JARVIX (mémoire locale)")
     p.set_defaults(fn=cmd_bilan)
 
+    p = sub.add_parser("status", help="état global : repo, MCP, device, harness, LLM, mémoires")
+    p.add_argument("--harness", default=os.environ.get("OP15_HARNESS", "E:/oneplus/geniex_harness"),
+                   help="chemin du harness (défaut: env OP15_HARNESS)")
+    p.set_defaults(fn=cmd_status)
+
     p = sub.add_parser("campaign", help="campagne MoE §8.1-4 (device requis)")
     p.add_argument("--model", help="chemin du GGUF")
-    p.add_argument("--harness", default="E:/oneplus/geniex_harness")
+    p.add_argument("--harness", default=os.environ.get("OP15_HARNESS", "E:/oneplus/geniex_harness"),
+                   help="chemin du harness (défaut: env OP15_HARNESS)")
     p.add_argument("--list", action="store_true")
     p.set_defaults(fn=cmd_campaign)
 
