@@ -1,0 +1,50 @@
+name: mcp-doctor
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  doctor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node (graft MCP)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install graft CLI
+        run: npm install -g @nanonets/graft
+
+      - name: Run mcp_doctor (handshakes + real tool probes)
+        id: doctor
+        env:
+          # registre CI : graft seul (les serveurs de prod — jarvix, upia,
+          # unified_recall — dépendent de stores locaux, hors runner)
+          MCP_DOCTOR_REGISTRY: ${{ github.workspace }}/.github/workflows/doctor-registry-ci.json
+        run: |
+          python3 tools/mcp_doctor.py --json --out doctor-report.json || true
+          cat doctor-report.json
+
+      - name: Upload doctor report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: doctor-report
+          path: doctor-report.json
+          if-no-files-found: warn
+
+      - name: Step summary
+        if: always()
+        run: |
+          {
+            echo "## mcp_doctor report"
+            echo '```json'
+            cat doctor-report.json 2>/dev/null || echo '{"error": "report missing"}'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
